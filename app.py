@@ -47,7 +47,48 @@ def index():
 @login_required
 def buy():
     """Buy shares of stock"""
-    return apology("TODO")
+
+    # User reached route via POST (as by submitting a form via POST)
+    if request.method == "POST":
+
+        # Lookup stock data and store in variable
+        stock_data = lookup(request.form.get("symbol"))
+
+        # Get shares from form input and cast to int
+        shares_tobuy = int(request.form.get("shares"))
+
+        # Check if lookup was unsuccessful
+        # and render apology
+        if stock_data == None:
+            return apology("ERROR!\nPlease try again, and make sure you enter a valid symbol (e.g. NFLX for Netflix)")
+
+        # Check if number of shares is NOT positive integer
+        # and render apology
+        if not shares_tobuy > 0:
+            return apology("ERROR!\nInvalid number of shares\nMinimum shares you can buy: 1")
+
+        # If shares is 1 or more, then try to buy
+        # We need to make sure user's got enough money        
+        user_cash = db.execute("SELECT cash FROM users WHERE id = ?", session["user_id"])[0]["cash"]
+        if user_cash < stock_data["price"] * shares_tobuy:
+            return apology("Insufficient funds")
+        
+        # If user got enough funds
+        # then make purchase and update db
+        db.execute("INSERT INTO purchases (user_id, stock_symbol, stock_price, shares) VALUES (?, ?, ?, ?)",
+                    session["user_id"],
+                    stock_data["symbol"],
+                    stock_data["price"],
+                    shares_tobuy)
+        
+        # Update user's funds after purchase
+        user_cash -= stock_data["price"] * shares_tobuy
+        db.execute("UPDATE users SET cash = ? WHERE id = ?", user_cash, session["user_id"])
+
+        # Redirect user to home page
+        return redirect("/")
+    else:
+        return render_template("buy.html")
 
 
 @app.route("/history")
@@ -109,7 +150,7 @@ def logout():
 def quote():
     """Get stock quote."""
 
-    # User reached route via POST (as by clicking "Get Quote" button)
+    # User reached route via POST (as by submitting a form via POST)
     if request.method == "POST":
         
         # Lookup stock data and store in variable
