@@ -1,0 +1,32 @@
+{% extends "layout.html" %}
+
+{% block title %}
+    Top-Up
+{% endblock %}
+
+{% block main %}
+    <form action="/top-up" method="post">
+        <div class="mb-3">
+            <input 
+                autocomplete="off" 
+                autofocus class="form-control mx-auto w-auto" 
+                id="top_up" 
+                name="top_up" 
+                placeholder="Amount to top-up ($)" 
+                type="text"
+            >
+        </div>
+        <div class="mb-3">
+            <input 
+                autocomplete="off" 
+                autofocus class="form-control mx-auto w-auto" 
+                id="password" 
+                name="password" 
+                placeholder="Confirm your password" 
+                type="text"
+            >
+        </div>
+        
+        <button class="btn btn-primary" type="submit">Top Up</button>
+    </form>
+{% endblock %}

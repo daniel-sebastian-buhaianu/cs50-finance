@@ -174,6 +174,18 @@ def history():
         transaction["shares"] = row["shares"]
         transactions.append(transaction)
 
+    # Get all transactions of type "Top-Up" from db
+    # and add to transaction list
+    rows = db.execute("SELECT * FROM top_ups WHERE user_id = ? ORDER BY date", session["user_id"])
+    for row in rows:
+        transaction = {}
+        transaction["date"] = row["date"]
+        transaction["type"] = "Top-Up"
+        transaction["symbol"] = "USD"
+        transaction["price"] = row["amount"]
+        transaction["shares"] = "N/A"
+        transactions.append(transaction)
+
     # Sort transactions list by date
     sorted_transactions = sorted(transactions, key=lambda d: d["date"])
 
@@ -366,3 +378,35 @@ def sell():
         return redirect("/")
     else:
         return render_template("sell.html")
+
+@app.route("/top-up", methods=["GET", "POST"])
+@login_required
+def top_up():
+
+    # User reached route via POST (as by submitting a form via POST)
+    if request.method == "POST":
+
+        # Ensure top up amount value is greater than $10
+        if not int(float(request.form.get("top_up"))) > 9:
+            return apology("Minimum top-up is $10.00", 403)        
+
+        # Query database for user's cash and hash
+        user = db.execute("SELECT cash, hash FROM users WHERE id = ?", session["user_id"])[0]
+
+        # Ensure password is correct
+        if not check_password_hash(user["hash"], request.form.get("password")):
+            return apology("Invalid password.", 403)
+        
+        # Update user's cash in database
+        db.execute("UPDATE users SET cash = ? WHERE id = ?",
+                   user["cash"] + float(request.form.get("top_up")),
+                   session["user_id"])
+        
+        # Update top_ups table in database
+        db.execute("INSERT INTO top_ups (user_id, amount) VALUES (?, ?)",
+                   session["user_id"],
+                   float(request.form.get("top_up")))
+
+        # Redirect user to home page
+        return redirect("/")   
+    return render_template("top_up.html")
