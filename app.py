@@ -40,7 +40,44 @@ def after_request(response):
 @login_required
 def index():
     """Show portfolio of stocks"""
-    return apology("TODO")
+
+    # Initialize portfolio of stocks and net worth
+    # net worth = user's cash + total portfolio value
+    stocks = {}
+    net_worth = 0
+
+    # Query database for all purchases made by user
+    rows = db.execute("SELECT * FROM purchases WHERE user_id = ? ORDER BY stock_symbol", session["user_id"])
+
+    # Iterate through all purchases and create dictionary of stocks
+    # which contains information about stock price, number of shares
+    # and holding value for each stock the user owns
+    for row in rows:
+        stock_symbol = row["stock_symbol"]
+        stock_price = lookup(stock_symbol)["price"]
+
+        # Calculate total portfolio value
+        net_worth += stock_price * int(row["shares"])
+
+        # If stock not in stocks dictionary, then add
+        if not stock_symbol in stocks:
+            stocks[stock_symbol] = {
+                "price": stock_price,
+                "shares": int(row["shares"]),
+                "total_value": stock_price * int(row["shares"])
+            }
+        else:
+            # Update stock's shares and total value
+            stocks[stock_symbol]["shares"] += int(row["shares"])
+            stocks[stock_symbol]["total_value"] += stock_price * int(row["shares"])
+
+    # Query database for user's cash
+    user_cash = db.execute("SELECT cash FROM users WHERE id = ?", session["user_id"])[0]["cash"]
+
+    # Calculate net worth
+    net_worth += user_cash
+
+    return render_template("index.html", stocks=stocks, cash=user_cash, net_worth=net_worth)
 
 
 @app.route("/buy", methods=["GET", "POST"])

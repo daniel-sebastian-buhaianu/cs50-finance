@@ -1,0 +1,38 @@
+{% extends "layout.html" %}
+
+{% block title %}
+    Home
+{% endblock %}
+
+{% block main %}
+    <section>
+        <div class="container">
+            <p>Cash: ${{"%0.2f" % cash | float}}</p>
+            <table class="table table-striped">
+                <thead>
+                  <tr>
+                    <th scope="col">#</th>
+                    <th scope="col">Stock</th>
+                    <th scope="col">Shares</th>
+                    <th scope="col">Current Share Price</th>
+                    <th scope="col">Total Holding Value</th>
+                  </tr>
+                </thead>
+                <tbody>
+                    {% for key in stocks %}
+                        <tr>
+                            <th scope="row">{{ loop.index0 + 1 }}</th>
+                            <td>{{ key }}</td>
+                            <td>{{ stocks[key]["shares"] }}</td>
+                            <td>{{ stocks[key]["price"] }}</td>
+                            <td>
+                                {{ "%0.2f" % stocks[key]["total_value"] | float }}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+              </table>
+              <p>Net Worth: ${{"%0.2f" % net_worth | float}}</p>
+        </div>
+    </section>
+{% endblock %}
