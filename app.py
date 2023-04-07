@@ -108,7 +108,24 @@ def logout():
 @login_required
 def quote():
     """Get stock quote."""
-    return apology("TODO")
+
+    # User reached route via POST (as by clicking "Get Quote" button)
+    if request.method == "POST":
+        
+        # Lookup stock data and store in variable
+        stock_data = lookup(request.form.get("symbol"))
+
+        # Check if lookup was unsuccessful
+        if stock_data == None:
+            return apology("ERROR!\nPlease try again, and make sure you enter a valid symbol (e.g. NFLX for Netflix)")
+        
+        # If lookup was successful, display useful information about stock
+        return render_template("quoted.html", 
+                               name=stock_data["name"], 
+                               price=stock_data["price"],
+                               symbol=stock_data["symbol"])
+    else:
+        return render_template("quote.html")
 
 
 @app.route("/register", methods=["GET", "POST"])
