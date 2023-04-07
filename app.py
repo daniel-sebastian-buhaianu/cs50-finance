@@ -71,6 +71,20 @@ def index():
             stocks[stock_symbol]["shares"] += int(row["shares"])
             stocks[stock_symbol]["total_value"] += stock_price * int(row["shares"])
 
+    # Iterate through all stocks purchased and update dictionary
+    # based on sales data to check how many stocks the user currently owns
+    for key in list(stocks):
+        rows = db.execute("SELECT stock_price, shares FROM sales WHERE user_id = ? AND stock_symbol = ?",
+                          session["user_id"],
+                          key)
+        for row in rows:
+            stocks[key]["shares"] -= int(row["shares"])
+            stocks[key]["total_value"] -= int(row["shares"]) * row["stock_price"]
+            net_worth -= int(row["shares"]) * row["stock_price"]
+            if(stocks[key]["shares"] == 0):
+                del stocks[key]
+
+
     # Query database for user's cash
     user_cash = db.execute("SELECT cash FROM users WHERE id = ?", session["user_id"])[0]["cash"]
 
@@ -132,7 +146,38 @@ def buy():
 @login_required
 def history():
     """Show history of transactions"""
-    return apology("TODO")
+
+    # Initialize list of transactions
+    transactions = []
+
+    # Get all transactions of type "Buy" from db
+    # and add to transaction list
+    rows = db.execute("SELECT * FROM purchases WHERE user_id = ? ORDER BY date", session["user_id"])
+    for row in rows:
+        transaction = {}
+        transaction["date"] = row["date"]
+        transaction["type"] = "Buy"
+        transaction["symbol"] = row["stock_symbol"]
+        transaction["price"] = row["stock_price"]
+        transaction["shares"] = row["shares"]
+        transactions.append(transaction)
+
+    # Get all transactions of type "Sell" from db
+    # and add to transaction list
+    rows = db.execute("SELECT * FROM sales WHERE user_id = ? ORDER BY date", session["user_id"])
+    for row in rows:
+        transaction = {}
+        transaction["date"] = row["date"]
+        transaction["type"] = "Sell"
+        transaction["symbol"] = row["stock_symbol"]
+        transaction["price"] = row["stock_price"]
+        transaction["shares"] = row["shares"]
+        transactions.append(transaction)
+
+    # Sort transactions list by date
+    sorted_transactions = sorted(transactions, key=lambda d: d["date"])
+
+    return render_template("history.html", transactions=sorted_transactions)
 
 
 @app.route("/login", methods=["GET", "POST"])
@@ -258,4 +303,66 @@ def register():
 @login_required
 def sell():
     """Sell shares of stock"""
-    return apology("TODO")
+
+    # User reached route via POST (as by submitting a form via POST)
+    if request.method == "POST":
+
+        # Lookup stock data and store in variable
+        stock_data = lookup(request.form.get("symbol"))
+
+        # Get shares from form input and cast to int
+        shares_tosell = int(request.form.get("shares"))
+
+        # Check if lookup was unsuccessful
+        # and render apology
+        if stock_data == None:
+            return apology("ERROR!\nPlease try again, and make sure you enter a valid symbol (e.g. NFLX for Netflix)")
+
+        # Check if number of shares is NOT positive integer
+        # and render apology
+        if not shares_tosell > 0:
+            return apology("ERROR!\nInvalid number of shares\nMinimum shares you can sell: 1")
+
+        # If shares is 1 or more, then try to sell
+        # We need to make sure user's got enough shares
+        shares_bought, shares_sold = 0, 0
+
+        # Calculate how many shares the user bought
+        rows = db.execute("SELECT shares FROM purchases WHERE user_id = ? AND stock_symbol = ?",
+                          session["user_id"],
+                          stock_data["symbol"])
+        for row in rows:
+            shares_bought += int(row["shares"])
+
+        # Calculate how many shares the user sold
+        rows = db.execute("SELECT shares FROM sales WHERE user_id = ? AND stock_symbol = ?",
+                          session["user_id"],
+                          stock_data["symbol"])
+        for row in rows:
+            shares_sold += int(row["shares"])
+
+        # If user hasn't got enough shares, return apology
+        if shares_bought - shares_sold < shares_tosell:
+            return apology("ERROR!\nInsufficient shares")
+        
+        # If user got enough shares
+        # then sell and update database
+        db.execute("INSERT INTO sales (user_id, stock_symbol, stock_price, shares) VALUES (?, ?, ?, ?)",
+                    session["user_id"],
+                    stock_data["symbol"],
+                    stock_data["price"],
+                    shares_tosell)
+        
+        # Query database for user's cash
+        user_cash = db.execute("SELECT cash FROM users WHERE id = ?", session["user_id"])[0]["cash"]
+
+        # Update user's cash after sale
+        user_cash += stock_data["price"] * shares_tosell
+        db.execute("UPDATE users SET cash = ? WHERE id = ?",
+                   user_cash,
+                   session["user_id"])
+
+        # Redirect user to home page
+        return redirect("/")
+    else:
+        return render_template("sell.html")

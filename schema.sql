@@ -1,4 +1,4 @@
-CREATE TABLE purchases (
+CREATE TABLE sales (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     user_id INTEGER NOT NULL,
     stock_symbol TEXT NOT NULL,
